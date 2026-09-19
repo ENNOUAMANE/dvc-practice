@@ -1,0 +1,18 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: python src/prepare.py
+    deps:
+    - path: data/dataset.csv
+      hash: md5
+      md5: dcbbabcd226fda68412fa45dd5b9defe
+      size: 60
+    - path: src/prepare.py
+      hash: md5
+      md5: 23d2d3eb30aa193064998f1533929acb
+      size: 439
+    outs:
+    - path: data/processed.csv
+      hash: md5
+      md5: d3bf2a18db9e6f10e5cd8378269b19cf
+      size: 170
