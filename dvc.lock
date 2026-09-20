@@ -5,7 +5,7 @@ stages:
     deps:
     - path: data/dataset.csv
       hash: md5
-      md5: dcbbabcd226fda68412fa45dd5b9defe
+      md5: 1b34070a106a9265085ae5899d5e3f37
       size: 60
     - path: src/prepare.py
       hash: md5
@@ -14,5 +14,5 @@ stages:
     outs:
     - path: data/processed.csv
       hash: md5
-      md5: d3bf2a18db9e6f10e5cd8378269b19cf
+      md5: 446095eb06d9bea694cf185896ae4f22
       size: 170
