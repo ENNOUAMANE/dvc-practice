@@ -8,7 +8,7 @@ git init
 
 Creates a Git repository for the project.
 
-**Purpose:** Git will track our code and DVC metadata.
+**Purpose:** Git tracks our code and DVC metadata.
 
 ---
 
@@ -49,11 +49,14 @@ data/.gitignore
 **Important:**
 
 ```text
-Git  → tracks dataset.dvc
-DVC  → tracks the actual dataset
+Git → tracks dataset.csv.dvc
+
+DVC → tracks the actual dataset
 ```
 
 The `.dvc` file contains metadata such as the dataset's hash and size.
+
+The hash acts like a **fingerprint of the dataset's contents**. If the dataset changes, its hash changes.
 
 ---
 
@@ -72,6 +75,8 @@ Data and pipelines are up to date.
 ```
 
 means DVC detects no changes that require action.
+
+If a dependency or output has changed, DVC reports the change.
 
 ---
 
@@ -105,13 +110,13 @@ Shows the DVC remotes configured for the project.
 dvc push
 ```
 
-Moves/syncs DVC-tracked data from the local DVC cache to the DVC remote.
+Synchronizes DVC-tracked data from the local DVC cache to the DVC remote.
 
 ```text
-LOCAL
-  │
-  │ dvc push
-  ▼
+LOCAL DVC CACHE
+       │
+       │ dvc push
+       ▼
 DVC REMOTE
 ```
 
@@ -127,23 +132,23 @@ Gets missing DVC-tracked data from the remote and restores it locally.
 
 ```text
 DVC REMOTE
-  │
-  │ dvc pull
-  ▼
-LOCAL
+       │
+       │ dvc pull
+       ▼
+LOCAL DVC CACHE / WORKSPACE
 ```
 
 ### Difference from Git
 
 ```text
-git push  → GitHub
-dvc push  → DVC remote
+git push → GitHub
+dvc push → DVC remote
 
-git pull  → GitHub
-dvc pull  → DVC remote
+git pull → GitHub
+dvc pull → DVC remote
 ```
 
-Git and DVC manage different things.
+Git and DVC manage different parts of the project.
 
 ---
 
@@ -214,7 +219,7 @@ dvc.yaml
 
 It describes the pipeline.
 
-Our current pipeline is:
+Our pipeline is:
 
 ```yaml
 stages:
@@ -236,6 +241,129 @@ outs → what the stage produces
 ```
 
 Think of `dvc.yaml` as the **recipe for the data pipeline**.
+
+---
+
+## 11. Reproduce the Pipeline
+
+```bash
+dvc repro
+```
+
+Runs the DVC pipeline stages that need to be executed.
+
+DVC checks the dependencies of each stage and determines whether something has changed.
+
+If nothing relevant changed:
+
+```text
+Stage 'prepare' is up to date
+```
+
+DVC can skip the stage.
+
+If a dependency changes:
+
+```text
+dataset.csv
+     │
+     │ changed
+     ▼
+dvc repro
+     │
+     ▼
+prepare.py runs again
+     │
+     ▼
+processed.csv regenerated
+```
+
+For example, when we changed `data/dataset.csv`, DVC detected the modified dependency and reran the `prepare` stage.
+
+---
+
+## 12. `dvc.lock`
+
+Running `dvc repro` creates or updates:
+
+```text
+dvc.lock
+```
+
+`dvc.lock` records the **exact state of the pipeline**, including the hashes of its dependencies and outputs.
+
+The important distinction is:
+
+```text
+dvc.yaml
+    │
+    └── describes HOW to produce the data
+        (pipeline recipe)
+
+
+dvc.lock
+    │
+    └── records WHICH exact versions/hashes
+        were used for a specific pipeline state
+```
+
+### Example
+
+Suppose:
+
+```text
+dataset.csv
+     │
+     ▼
+prepare.py
+     │
+     ▼
+processed.csv
+```
+
+We modify one line in `dataset.csv`.
+
+The pipeline structure has not changed, so:
+
+```text
+dvc.yaml → stays the same
+```
+
+But the dataset content has changed, so its hash changes:
+
+```text
+old dataset hash
+       ↓
+   dataset changed
+       ↓
+new dataset hash
+```
+
+After:
+
+```bash
+dvc repro
+```
+
+DVC updates the pipeline state in `dvc.lock`.
+
+The tracked dataset metadata in:
+
+```text
+data/dataset.csv.dvc
+```
+
+can also be updated to reflect the new dataset hash.
+
+### Key idea
+
+```text
+dvc.yaml → What should happen?
+
+dvc.lock → What exact data/state was used?
+
+dvc repro → Make the pipeline reach that state.
+```
 
 ---
 
@@ -273,39 +401,241 @@ dvc push
 
 ---
 
+# Dataset Change Experiment
+
+We also performed a small experiment to understand DVC's version tracking.
+
+### Step 1 — Change the dataset
+
+We modified a value in:
+
+```text
+data/dataset.csv
+```
+
+### Step 2 — Check the status
+
+```bash
+dvc status
+```
+
+DVC detected that the dataset dependency had changed.
+
+It also detected that the tracked dataset's hash no longer matched the recorded version.
+
+### Step 3 — Reproduce the pipeline
+
+```bash
+dvc repro
+```
+
+DVC:
+
+```text
+Detected dataset change
+        │
+        ▼
+Reran prepare stage
+        │
+        ▼
+Regenerated processed.csv
+        │
+        ▼
+Updated dvc.lock
+```
+
+### What we learned
+
+Changing the data does **not** change the pipeline recipe.
+
+```text
+dataset.csv changed
+       │
+       ├── dvc.yaml → unchanged
+       │
+       ├── dataset.csv.dvc → new dataset hash
+       │
+       └── dvc.lock → updated pipeline state
+```
+
+This demonstrates the difference between the **pipeline definition** and the **pipeline state**.
+
+---
+
+# Inspecting Previous Versions with Git
+
+Because Git tracks files such as:
+
+```text
+dvc.yaml
+dvc.lock
+data/dataset.csv.dvc
+```
+
+we can inspect their previous versions.
+
+Show the file from the current commit:
+
+```bash
+git show HEAD:data/dataset.csv.dvc
+```
+
+Show the file from the previous commit:
+
+```bash
+git show HEAD~1:data/dataset.csv.dvc
+```
+
+Show the file from two commits before:
+
+```bash
+git show HEAD~2:data/dataset.csv.dvc
+```
+
+The meaning is:
+
+```text
+HEAD~2       HEAD~1        HEAD
+   │            │            │
+   ▼            ▼            ▼
+Commit A  →  Commit B  →  Commit C
+```
+
+This allows us to compare the dataset hashes recorded in different Git commits.
+
+---
+
+# Git vs DVC
+
+```text
+                    PROJECT
+                       │
+             ┌─────────┴─────────┐
+             │                   │
+            GIT                 DVC
+             │                   │
+             ▼                   ▼
+      Code + metadata          Data
+      dvc.yaml                 Dataset
+      dvc.lock                 Models
+      *.dvc files              Pipeline outputs
+             │                   │
+             ▼                   ▼
+          GitHub             DVC Remote
+```
+
+Git and DVC work together:
+
+```text
+Git
+ │
+ ├── tracks code
+ ├── tracks dvc.yaml
+ ├── tracks dvc.lock
+ └── tracks .dvc metadata
+             │
+             ▼
+       identifies versions
+             │
+             ▼
+DVC
+ │
+ ├── stores datasets
+ ├── stores models
+ ├── stores pipeline outputs
+ └── reproduces pipelines
+```
+
+---
+
 # Commands Learned So Far
 
-| Command           | What it does             |
-| ----------------- | ------------------------ |
-| `git init`        | Initializes Git          |
-| `dvc init`        | Initializes DVC          |
-| `dvc add <file>`  | Tracks data with DVC     |
-| `dvc status`      | Checks DVC state         |
-| `dvc remote add`  | Adds a DVC remote        |
-| `dvc remote list` | Lists DVC remotes        |
-| `dvc push`        | Uploads DVC data         |
-| `dvc pull`        | Downloads DVC data       |
-| `dvc stage add`   | Creates a pipeline stage |
+| Command                  | What it does                             |
+| ------------------------ | ---------------------------------------- |
+| `git init`               | Initializes Git                          |
+| `dvc init`               | Initializes DVC                          |
+| `dvc add <file>`         | Tracks data with DVC                     |
+| `dvc status`             | Checks DVC state                         |
+| `dvc remote add`         | Adds a DVC remote                        |
+| `dvc remote list`        | Lists DVC remotes                        |
+| `dvc push`               | Uploads DVC data to the remote           |
+| `dvc pull`               | Downloads DVC data from the remote       |
+| `dvc stage add`          | Creates a pipeline stage                 |
+| `dvc repro`              | Reproduces pipeline stages when needed   |
+| `git show HEAD:<file>`   | Shows a file from the current Git commit |
+| `git show HEAD~1:<file>` | Shows a file from the previous commit    |
+| `git show HEAD~2:<file>` | Shows a file from two commits before     |
 
-## The main idea
+---
+
+# The Main Idea
 
 **Git tracks the project/code and DVC metadata.**
 
 **DVC tracks the actual ML data and knows how to reproduce the data pipeline.**
 
-So:
+The core workflow is:
 
 ```text
-Git
- └── code + DVC metadata
-          │
-          ▼
-       GitHub
+             CODE + PIPELINE DEFINITION
+                       │
+                       ▼
+                  Git / GitHub
+                       │
+                       │
+DATA ────────► DVC tracks hashes
+                       │
+                       ▼
+                  DVC Remote
+                       │
+                       │
+                       ▼
+                 dvc repro
+                       │
+                       ▼
+              Reproduce the pipeline
+```
+
+The three most important concepts learned are:
+
+```text
+dvc.yaml
+   ↓
+Defines the pipeline
+"HOW should the data be produced?"
 
 
-DVC
- └── datasets + pipeline outputs
-          │
-          ▼
-      DVC Remote
+dvc.lock
+   ↓
+Records the exact pipeline state
+"WHICH versions/hashes were used?"
+
+
+dvc repro
+   ↓
+Reproduces the pipeline
+"RUN the necessary stages again."
+```
+
+## Mental Model
+
+Think of DVC as combining **data versioning + pipeline tracking + reproducibility**:
+
+```text
+              DVC
+               │
+       ┌───────┼────────┐
+       │       │        │
+       ▼       ▼        ▼
+     DATA   PIPELINE  STATE
+       │       │        │
+   dvc add  dvc.yaml  dvc.lock
+       │       │        │
+       └───────┼────────┘
+               │
+               ▼
+           dvc repro
+               │
+               ▼
+        Reproducible ML
 ```
