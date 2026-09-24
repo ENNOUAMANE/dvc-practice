@@ -6,3 +6,23 @@ stages:
     - src/prepare.py
     outs:
     - data/processed.csv
+  train:
+    cmd: python src/train.py
+    deps:
+    - data/processed.csv
+    - src/train.py
+    params:
+    - train.random_state
+    - train.test_size
+    outs:
+    - data/test.csv
+    - models/model.pkl
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+    - data/test.csv
+    - models/model.pkl
+    - src/evaluate.py
+    metrics:
+    - metrics.json:
+        cache: false
