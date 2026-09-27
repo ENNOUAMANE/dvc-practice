@@ -7,7 +7,7 @@ from sklearn.metrics import accuracy_score
 # Load test data
 test_df = pd.read_csv("data/test.csv")
 
-X_test = test_df[["hours_studied"]]
+X_test = test_df[["hours_studied", "attendance"]]
 y_test = test_df["passed"]
 
 # Load trained model
