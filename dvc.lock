@@ -30,33 +30,40 @@ stages:
     params:
       params.yaml:
         train.random_state: 42
-        train.test_size: 0.3
+        train.test_size: 0.4
     outs:
     - path: data/test.csv
       hash: md5
-      md5: 6afe2461d1691f7c018affcbcfa0615d
-      size: 240
+      md5: 6352fff0ff35c5dfeefbe87ef46f82e6
+      size: 305
     - path: models/model.pkl
       hash: md5
-      md5: b142dd40210481d27dee447408d213d1
+      md5: 3798b161ee8897225630e413dbd7926c
       size: 1167
   evaluate:
     cmd: python src/evaluate.py
     deps:
     - path: data/test.csv
       hash: md5
-      md5: 6afe2461d1691f7c018affcbcfa0615d
-      size: 240
+      md5: 6352fff0ff35c5dfeefbe87ef46f82e6
+      size: 305
     - path: models/model.pkl
       hash: md5
-      md5: b142dd40210481d27dee447408d213d1
+      md5: 3798b161ee8897225630e413dbd7926c
       size: 1167
     - path: src/evaluate.py
       hash: md5
-      md5: f719bafaa99e2534f15a960e25d0b378
-      size: 645
+      md5: 76721dceea881c0f1c556a064196aa8c
+      size: 1064
+    params:
+      params.yaml:
+        train.test_size: 0.4
     outs:
     - path: metrics.json
       hash: md5
-      md5: 911b22e1e9ca7117ffe09e9b6d622b16
+      md5: c0202d002eec8d523171426162bf4201
       size: 40
+    - path: plots/accuracy.csv
+      hash: md5
+      md5: 49e480493a7ebea2847d7e64768d25c5
+      size: 44
