@@ -2,7 +2,7 @@ stages:
   prepare:
     cmd: python src/prepare.py
     deps:
-    - data/dataset.csv
+    - data/validated.csv
     - src/prepare.py
     outs:
     - data/processed.csv
@@ -31,3 +31,10 @@ stages:
     plots:
     - plots/accuracy.csv:
         cache: false
+  validate:
+    cmd: python src/validate.py
+    deps:
+    - data/dataset.csv
+    - src/validate.py
+    outs:
+    - data/validated.csv
