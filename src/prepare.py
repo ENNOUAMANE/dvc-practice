@@ -1,6 +1,6 @@
 import pandas as pd
 
-input_path = "data/dataset.csv"
+input_path = "data/validated.csv"
 output_path = "data/processed.csv"
 
 df = pd.read_csv(input_path)
